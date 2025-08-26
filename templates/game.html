@@ -1,0 +1,241 @@
+{% extends "_base.html" %}
+{% load static %}
+{% load partials %}
+
+{% block scripts %}
+{{ block.super }}
+<script src="{% static 'js/game.js' %}"></script>
+{% endblock scripts %}
+
+{% block content %}
+<div
+    hx-ext="ws"
+    ws-connect="/ws/game/{{ game.id }}/"
+    x-data="{
+        disabled: false,
+    }"
+    x-on:htmx:ws-before-send="disabled = true;"
+    x-on:htmx:ws-after-message="if ($event.detail.message.includes('__error__')) { disabled = false; }"
+>
+    {% partialdef game-partial inline %}
+    <article id="game">
+        {% if game.stage == game.stages.LOBBY %}
+            {% partialdef players-partial inline %}
+            <div id="players" hx-swap-oob="true">
+                <h2>Players</h2>
+                {% partialdef player-partial %}
+                    <div id="player-{{ player.id }}">
+                        {% if player == current_player %}
+                            <form ws-send
+                                x-init="disabled = false"
+                            >
+                                <fieldset role="group" x-bind:disabled="disabled">
+                                    <input type="hidden" name="event" value="change_name" />
+                                    <input type="text" name="name" value="{{ player.name }}" placeholder="Enter your name" />
+                                    <button type="submit">Update</button>
+                                </fieldset>
+                            </form>
+                        {% else %}
+                            <input type="text" readonly value="{{ player.name }}" />
+                        {% endif %}
+                    </div>
+                {% endpartialdef player-partial %}
+                {% for player_id, player in game.players.items %}
+                    {% if player.connected %}
+                        {% partial player-partial %}
+                    {% endif %}
+                {% endfor %}
+            </div>
+            {% endpartialdef players-partial %}
+
+
+            <form id="startGameForm" ws-send>
+                <input type="hidden" name="event" value="start_game" />
+                <button type="submit">Start Game</button>
+            </form>
+        {% endif %}
+
+        {% if game.stage == game.stages.INTRO %}
+            <div id="intro">
+                <p>
+                    Welcome to the AI Imposter game! In this game, you will play as a crew member trying to identify the imposter
+                    among you.
+                </p>
+                {% partial skip-stage-partial %}
+                {% partial timer-partial %}
+            </div>
+        {% endif %}
+
+        {% if game.stage == game.stages.QUESTION %}
+            <div id="question">
+                {% if game.questioner == current_player %}
+                    <form id="questionForm" ws-send
+                        x-init="disabled = false"
+                    >
+                        <fieldset x-bind:disabled="disabled">
+                            <input type="hidden" name="event" value="ask_question" />
+                            <input type="text" name="question" placeholder="Type your question here..." />
+                            <button type="submit">Ask Question</button>
+                        </fieldset>
+                    </form>
+                {% else %}
+                    <h4>Waiting for questioner to ask a question...</h4>
+                {% endif %}
+                {% partial timer-partial %}
+            </div>
+        {% endif %}
+
+        {% if game.stage == game.stages.ANSWER %}
+            <div id="answer">
+                <h3>{{ game.question }}</h3>
+                {% if game.questioner != current_player %}
+                {% partialdef answer-form-partial inline %}
+                <form id="answerForm" hx-swap-oob="true" ws-send
+                    x-init="disabled = {{ current_player.can_answer_question|yesno:'false,true' }}"
+                >
+                    <fieldset role="group" x-bind:disabled="disabled">
+                        <input type="hidden" name="event" value="answer_question" />
+                        <input type="text" name="answer" placeholder="Type your answer here..." />
+                        <button type="submit">Submit</button>
+                    </fieldset>
+                </form>
+                {% endpartialdef answer-form-partial %}
+                {% endif %}
+            </div>
+
+            {% partialdef waiting-on-players-partial inline %}
+            <div id="waiting-on-players" hx-swap-oob="true">
+                <p>
+                    Waiting on {{ game.get_waiting_on_num_players_to_answer }} players...
+                </p>
+            </div>
+            {% endpartialdef waiting-on-players-partial %}
+
+            {% partialdef waiting-on-ai-partial inline %}
+            <div id="waiting-on-ai" hx-swap-oob="true">
+                {% if waiting_on_ai_answer %}
+                <p>Waiting for AI to respond...</p>
+                {% endif %}
+            </div>
+            {% endpartialdef waiting-on-ai-partial %}
+
+            {% partial timer-partial %}
+        {% endif %}
+
+        {% if game.stage == game.stages.SHOW_ANSWERS %}
+            <div id="show-answers"
+                x-init="disabled = {{ current_player.can_vote|yesno:'false,true' }}"
+            >
+                <h4>Click on the answer you think came from AI</h4>
+                {% for player in game.answering_players %}
+                    <form id="answerForm" ws-send>
+                        <fieldset x-bind:disabled="disabled">
+                            <input type="hidden" name="event" value="vote" />
+                            <input type="hidden" name="player" value="{{ player.id }}" />
+                            <button
+                                type="submit"
+                                {% if player.id == current_player.targeted_player.id %}
+                                    class="contrast"
+                                {% else %}
+                                    class="contrast outline"
+                                {% endif %}
+                            >
+                                {{ player.answer }}
+                            </button>
+                        </fieldset>
+                    </form>
+                {% endfor %}
+                {% partialdef waiting-on-votes-partial inline %}
+                <p id="waiting-on-votes" hx-swap-oob="true">
+                    Waiting on {{ game.get_waiting_on_num_players_to_vote }} players...
+                </p>
+                {% endpartialdef waiting-on-votes-partial %}
+                {% partial timer-partial %}
+            </div>
+        {% endif %}
+
+        {% if game.stage == game.stages.ELIMINATE %}
+            <div id="eliminate">
+                <h4>The votes are in! The player with the most votes is eliminated.</h4>
+                {% if game.eliminated_player %}
+                    <p>
+                        {{ game.eliminated_player.name }} has been eliminated!
+                    </p>
+                    <div role="group">
+                        <button type="button" disabled class="outline">{{ game.eliminated_player.answer }}</button>
+                        <button type="button" disabled class="secondary" style="width: min-content;">{{ game.eliminated_player.num_votes }}</button>
+                    </div>
+                {% else %}
+                    <p>
+                        No player was eliminated this round.
+                    </p>
+                {% endif %}
+                <p>Other answers:</p>
+                {% for player in game.answering_players %}
+                    <div role="group">
+                        <button type="button" disabled class="outline">{{ player.answer }}</button>
+                        <button type="button" disabled class="secondary" style="width: min-content;">{{ player.num_votes }}</button>
+                    </div>
+                {% endfor %}
+                {% partial skip-stage-partial %}
+                {% partial timer-partial %}
+        {% endif %}
+
+        {% if game.stage == game.stages.ENDING %}
+            <div id="ending">
+                {% if game.winner == game.TEAM_HUMAN %}
+                    <h2>Game Over</h2>
+                    <p>The humans have won!</p>
+                {% elif game.winner == game.TEAM_AI %}
+                    <h2>Game Over</h2>
+                    <p>The AI has won!</p>
+                {% endif %}
+            </div>
+        {% endif %}
+
+        {% if current_player.eliminated %}
+            <div id="eliminated">
+                <h2>You have been eliminated!</h2>
+                <p>Better luck next time!</p>
+            </div>
+        {% endif %}
+
+    </article>
+    {% endpartialdef game-partial %}
+
+    {% comment %} 
+        Helper Partials ----------------------
+    {% endcomment %}
+
+    {% partialdef skip-stage-partial %}
+    <form ws-send>
+        <input type="hidden" name="event" value="skip_stage" />
+        <button type="submit">Skip</button>
+    </form>
+    {% endpartialdef skip-stage-partial %}
+
+    {% partialdef timer-partial %}
+    <progress 
+        id="game-timer"
+        value="100"
+        max="100"
+        hx-swap-oob="true"
+        {% if game.stage.timer_start and game.stage.timer_end %}
+        x-init="startTimer({{ game.stage.timer_start|date:'U' }} * 1000, {{ game.stage.timer_end|date:'U' }} * 1000)"
+        {% endif %}
+    ></progress>
+    {% endpartialdef timer-partial %}
+
+    <div
+        x-data="{ show_error: false }"
+        x-on:htmx:oob-after-swap="show_error = true; setTimeout(() => { show_error = false }, 3000)"
+    >
+    {% partialdef error-partial inline %}
+        <article id="__error__" hx-swap-oob="true" x-show="show_error">
+            {% if error_message %} {{ error_message }} {% endif %}
+        </article>
+    {% endpartialdef error-partial %}
+    </div>
+
+</div>
+{% endblock %}

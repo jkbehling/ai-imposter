@@ -1,0 +1,45 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+{% block head %}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    {% block title %}<title>AI Imposter</title>{% endblock title %}
+
+    {% block styles %}
+    <link
+        rel="stylesheet"
+        href="https://cdn.jsdelivr.net/npm/@picocss/pico@2/css/pico.min.css"
+    >
+    <link rel="stylesheet" href="{% static 'css/styles.css' %}">
+    {% endblock styles %}
+
+    {% block scripts %}
+    <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.6/dist/htmx.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.2"></script>
+    <script src="//unpkg.com/alpinejs" defer></script>
+    {% endblock scripts %}
+{% endblock head %}
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div style="display: flex; align-items: center; justify-content: space-between;">
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <div><img src="{% static 'images/ai_imposter.svg' %}" alt="AI Imposter Logo" width="50" height="50"></div>
+                    <span style="font-size: 26pt; font-weight: bold;">AI Imposter</span>
+                </div>
+                {% if game %}
+                <div>
+                    <span>Game ID: {{ game.id }}</span>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+    <main class="container">
+        {% block content %} {% endblock %}
+    </main>
+</body>
+</html>

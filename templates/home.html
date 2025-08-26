@@ -1,0 +1,16 @@
+{% extends "_base.html" %}
+{% block content %}
+<article>
+    <header>
+        <h2>Welcome to AI Imposter</h2>
+    </header>
+    <form method="POST" action="{% url 'home' %}">
+        <fieldset>
+            <legend><h4>Game Settings</h4></legend>
+            {% csrf_token %}
+            {{ form }}
+            <button type="submit">Create Game</button>
+        </fieldset>
+    </form>
+</article>
+{% endblock %}
