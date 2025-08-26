@@ -12,6 +12,7 @@ https://docs.djangoproject.com/en/5.2/ref/settings/
 
 import os
 import dotenv
+import dj_database_url
 from pathlib import Path
 
 dotenv.load_dotenv()
@@ -28,7 +29,7 @@ SECRET_KEY = os.environ.get('SECRET_KEY', 'django-insecure--jbd%)ctmb38ao_-#noq5
 
 # SECURITY WARNING: don't run with debug turned on in production!
 # Assign DEBUG from environment variable 'DEBUG', defaulting to False
-DEBUG = os.environ.get('DEBUG', 'False').lower() in ('1', 'true', 'yes')
+DEBUG = os.environ.get('DEBUG', 'false').lower() in ('1', 'true', 'yes')
 
 ALLOWED_HOSTS = os.environ.get('ALLOWED_HOSTS', '').split(',')
 
@@ -87,11 +88,16 @@ CHANNEL_LAYERS = {
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+if dj_database_url.config():
+    DATABASES = {
+        'default': dj_database_url.config(conn_max_age=600)
     }
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': os.environ.get('DATABASES_DEFAULT_ENGINE', 'django.db.backends.sqlite3'),
+            'NAME': os.environ.get('DATABASES_DEFAULT_NAME', BASE_DIR / 'db.sqlite3'),
+        }
 }
 
 
