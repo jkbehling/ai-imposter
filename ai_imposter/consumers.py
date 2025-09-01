@@ -21,6 +21,7 @@ class GameConsumer(AsyncWebsocketConsumer):
             "ask_question": self.handle_ask_question,
             "answer_question": self.handle_answer_question,
             "vote": self.handle_vote,
+            "play_again": self.handle_play_again,
         }
 
     async def connect(self):
@@ -117,7 +118,7 @@ class GameConsumer(AsyncWebsocketConsumer):
         await self.group_send_html("game.html#game-partial")
         # Schedule the next stage to start after the CURRENT stage's duration
         next_stage = self.game.next_stage
-        if next_stage:
+        if next_stage and next_stage.duration:
             # pass the current stage duration as the delay so we wait the right amount
             self.game.queued_stage = asyncio.create_task(self.queue_stage(next_stage, delay=self.game.stage.duration))
 
@@ -218,3 +219,9 @@ class GameConsumer(AsyncWebsocketConsumer):
             await self.create_start_stage_task(self.game.next_stage)
             return "", {}
         return "game.html#waiting-on-votes-partial", {}
+
+    async def handle_play_again(self, data):
+        if not self.game.stage == self.game.stages.ENDING:
+            raise Exception("You can only play again at the end of the game")
+        self.game.reset()
+        return "game.html#game-partial", {}

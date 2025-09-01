@@ -190,6 +190,10 @@
                     <h2>Game Over</h2>
                     <p>The AI has won!</p>
                 {% endif %}
+                <form ws-send>
+                    <input type="hidden" name="event" value="play_again" />
+                    <button type="submit">Play Again</button>
+                </form>
             </div>
         {% endif %}
 

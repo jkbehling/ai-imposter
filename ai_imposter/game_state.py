@@ -24,7 +24,7 @@ class Stages:
     ANSWER = Stage("answer", duration=30)
     SHOW_ANSWERS = Stage("show_answers", duration=30)
     ELIMINATE = Stage("eliminate", duration=15, skipable=True)
-    ENDING = Stage("ending", duration=30)
+    ENDING = Stage("ending")
 
 class GameState:
     TEAM_HUMAN = 'TEAM_HUMAN'
@@ -67,6 +67,8 @@ class GameState:
             if not self.winner:
                 return Stages.QUESTION
             return Stages.ENDING
+        elif self.stage == Stages.ENDING:
+            return Stages.LOBBY
         return None
 
     def add_player(self, player_id, channel_name):
@@ -184,6 +186,20 @@ class GameState:
             self.question,
             self.get_human_answers()
         )
+
+    def reset(self):
+        self.stage = Stages.LOBBY
+        self.questioner = None
+        self.question = None
+        self.eliminated_player = None
+        self.winner = None
+        for player in self.players.values():
+            player.asked_question = False
+            player.answer = ''
+            player.voted = False
+            player.targeted_player = None
+            player.num_votes = 0
+            player.eliminated = False
 
     def to_json(self):
         return json.dumps({
