@@ -35,15 +35,33 @@ class GameConsumer(AsyncWebsocketConsumer):
             self.game_group_name, self.channel_name
         )
         await self.accept()
-        self.game.add_player(self.scope["session"].session_key, self.channel_name)
-        await self.group_send_html("game.html#players-partial")
+        was_new_player = self.game.add_player(self.scope["session"].session_key, self.channel_name)
+        context = {
+            "player": self.game.get_player(self.scope["session"].session_key)
+        }
+        if was_new_player:
+            context["add"] = True
+        else:
+            context["update"] = True
+        await self.group_send_html(
+            "game.html#player-partial",
+            context
+        )
 
     async def disconnect(self, close_code):
-        self.game.remove_player(self.scope["session"].session_key)
+        session_key = self.scope["session"].session_key
+        deleted_player = self.game.get_player(session_key)
+        self.game.remove_player(session_key)
         await self.channel_layer.group_discard(
             self.game_group_name, self.channel_name
         )
-        await self.group_send_html("game.html#players-partial")
+        await self.group_send_html(
+            "game.html#player-partial",
+            {
+                "player": deleted_player,
+                "update": True,
+            }
+        )
 
     async def receive(self, text_data):
         data = json.loads(text_data)
@@ -160,8 +178,9 @@ class GameConsumer(AsyncWebsocketConsumer):
         new_name = data.get("name")
         if not new_name:
             raise Exception("Name is required")
-        self.game.get_player(self.scope["session"].session_key).name = new_name
-        return "game.html#players-partial", {}
+        player = self.game.get_player(self.scope["session"].session_key)
+        player.name = new_name
+        return "game.html#player-partial", {"player": player, "update": True}
 
     async def handle_start_game(self, data):
         self.game.select_next_questioner()

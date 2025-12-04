@@ -35,7 +35,9 @@ class GameView(View):
         if not game:
             games[game_id] = GameState(game_id, 'dev')
             return redirect('game', game_id=game_id)
-        #     raise Http404("Game not found")
+        if not game.stage == game.stages.LOBBY:
+            if not request.session.session_key in game.players:
+                raise Http404("Game already started")
         context = {
             'game': game
         }

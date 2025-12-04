@@ -24,26 +24,37 @@
             <div id="players" hx-swap-oob="true">
                 <h2>Players</h2>
                 {% partialdef player-partial %}
-                    <div id="player-{{ player.id }}">
-                        {% if player == current_player %}
-                            <form ws-send
-                                x-init="disabled = false"
-                            >
-                                <fieldset role="group" x-bind:disabled="disabled">
-                                    <input type="hidden" name="event" value="change_name" />
-                                    <input type="text" name="name" value="{{ player.name }}" placeholder="Enter your name" />
-                                    <button type="submit">Update</button>
-                                </fieldset>
-                            </form>
-                        {% else %}
-                            <input type="text" readonly value="{{ player.name }}" />
+                    <div
+                        {% if add %}
+                            hx-swap-oob="beforeend:#players"
+                        {% elif update %}
+                            hx-swap-oob="outerHTML:#player-{{ player.id }}"
                         {% endif %}
+                    >
+                        <div
+                            id="player-{{ player.id }}"
+                            {% if not player.connected %}
+                                hidden
+                            {% endif %}
+                        >
+                            {% if player == current_player %}
+                                <form ws-send
+                                    x-init="disabled = false"
+                                >
+                                    <fieldset role="group" x-bind:disabled="disabled">
+                                        <input type="hidden" name="event" value="change_name" />
+                                        <input type="text" name="name" value="{{ player.name }}" placeholder="Enter your name" />
+                                        <button type="submit">Update</button>
+                                    </fieldset>
+                                </form>
+                            {% else %}
+                                <input type="text" readonly value="{{ player.name }}" />
+                            {% endif %}
+                        </div>
                     </div>
                 {% endpartialdef player-partial %}
-                {% for player_id, player in game.players.items %}
-                    {% if player.connected %}
-                        {% partial player-partial %}
-                    {% endif %}
+                {% for player in game.all_players %}
+                    {% partial player-partial %}
                 {% endfor %}
             </div>
             {% endpartialdef players-partial %}

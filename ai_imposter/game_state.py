@@ -20,9 +20,9 @@ class Stage:
 class Stages:
     LOBBY = Stage("lobby")
     INTRO = Stage("intro", duration=5, skipable=True)
-    QUESTION = Stage("question", duration=30)
-    ANSWER = Stage("answer", duration=30)
-    SHOW_ANSWERS = Stage("show_answers", duration=30)
+    QUESTION = Stage("question", duration=60)
+    ANSWER = Stage("answer", duration=60)
+    SHOW_ANSWERS = Stage("show_answers", duration=60)
     ELIMINATE = Stage("eliminate", duration=15, skipable=True)
     ENDING = Stage("ending")
 
@@ -72,22 +72,31 @@ class GameState:
         return None
 
     def add_player(self, player_id, channel_name):
+        """
+            Add or reconnect a player to the game.
+            Returns True if a new player was added, False if reconnected.
+        """
         if player_id not in self.players:
             self.players[player_id] = Player(
                 player_id,
                 f"Player {len(self.players)}", 
                 channel_name
             )
+            return True
         else:
             self.players[player_id].channel_name = channel_name
             self.players[player_id].connected = True
+            return False
 
     def remove_player(self, player_id):
         if player_id in self.players:
             self.players[player_id].connected = False
 
-    def connected_players(self):
-        return [p for p in self.players.values() if p.connected and not p.is_ai]
+    def all_players(self):
+        return list(self.players.values())
+
+    def connected_players(self, exclude=[]):
+        return [p for p in self.players.values() if p.connected and not p.is_ai and p.id not in exclude]
 
     def answering_human_players(self):
         return [p for p in self.connected_players() if p.id != self.questioner.id and not p.eliminated]
