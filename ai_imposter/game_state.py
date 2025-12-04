@@ -36,10 +36,11 @@ class GameState:
         # Generate a uuid for the ai player
         self.ai_player_id = str(uuid.uuid4())
         self.players: dict[str, Player] = {
-            self.ai_player_id: Player(self.ai_player_id, 'AI Player', is_ai=True)
+            self.ai_player_id: Player(self, self.ai_player_id, 'AI Player', is_ai=True)
         }
         self.stages = Stages
         # Assign before_start hooks to the stages
+        self.stages.QUESTION.before_start = self.select_next_questioner
         self.stages.ANSWER.before_start = self.before_answer
         self.stages.SHOW_ANSWERS.before_start = self.before_show_answers
         self.stages.ELIMINATE.before_start = self.eliminate_player
@@ -78,6 +79,7 @@ class GameState:
         """
         if player_id not in self.players:
             self.players[player_id] = Player(
+                self,
                 player_id,
                 f"Player {len(self.players)}", 
                 channel_name
@@ -220,7 +222,8 @@ games: dict[int, GameState] = {}
 
 class Player:
 
-    def __init__(self, id, name, channel_name='', is_ai=False):
+    def __init__(self, game, id, name, channel_name='', is_ai=False):
+        self.game = game
         self.id = id
         self.name = name
         self.is_ai = is_ai
@@ -235,7 +238,7 @@ class Player:
 
     @property
     def can_answer_question(self):
-        return self.connected and not self.asked_question and not self.eliminated and not self.answer
+        return self.connected and not self.id == self.game.questioner.id and not self.eliminated and not self.answer
 
     @property
     def can_vote(self):

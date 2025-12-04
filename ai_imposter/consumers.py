@@ -183,7 +183,6 @@ class GameConsumer(AsyncWebsocketConsumer):
         return "game.html#player-partial", {"player": player, "update": True}
 
     async def handle_start_game(self, data):
-        self.game.select_next_questioner()
         await self.create_start_stage_task(self.game.next_stage)
         return "", {}
 
